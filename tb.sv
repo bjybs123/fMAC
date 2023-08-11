@@ -3,13 +3,12 @@ module testbench;
 logic clk, reset;
 
 logic [7:0]    Act_E [0:15];
-logic [4-1:0]  Act_M [0:15];
+logic [3:0]    Act_M [0:15];
 logic [7:0]    Weight_E [0:15];
-logic [4-1:0]  Weight_M [0:15];
+logic [3:0]    Weight_M [0:15];
 
 logic [7:0]    result_E;
 logic [23:0]   result_M;
-logic sel_weight, dp_en;
 
 logic [32-1:0] vectornum, errors;
 logic [(12*16)-1:0] testvectors_Act [0:10000];
@@ -42,9 +41,9 @@ initial begin
 	$dumpvars(0, testbench);
 
 
-    clk = 0; reset = 1;  dp_en = 0; vectornum = 0;
+    clk = 0; reset = 1; vectornum = 0;
     #27; reset = 0; 
-    #10; sel_weight = 0; dp_en = 1;
+    #10; 
     #128; $finish;
 end
 

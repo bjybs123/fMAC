@@ -22,15 +22,16 @@ module fmac #(
     );
 
     parameter levels = $clog2(GRPSIZE);
-    parameter MULBFPMANSIZE = ((BFPMANSIZE-1)*2)+1;
+    parameter MULBFPMANSIZE = ((BFPMANSIZE-1)*2)+1;     //7-bit
 
 
     logic [(BFPEXPSIZE+1)-1:0] tmp_exp_rslt;
     logic [BFPEXPSIZE-1:0] exp_rslt;
     logic [MULBFPMANSIZE-1:0] mul_rslt [0:GRPSIZE-1];
-    logic [(MULBFPMANSIZE+levels)-1:0] tmp_rslt [1:GRPSIZE-1];
+    logic [(MULBFPMANSIZE+levels)-1:0] tmp_rslt [1:GRPSIZE-1];  //11-bit
 
     logic [7:0] fp_exp;
+    logic [23:0] tmp_fp_man;
     logic [23:0] fp_man;
 
     // add exponent of two groups
@@ -57,20 +58,20 @@ module fmac #(
                     if(lv == levels-1) begin
                         if(mul_rslt[add*2][MULBFPMANSIZE-1] == 0 && mul_rslt[add*2+1][MULBFPMANSIZE-1] == 1) begin                                                            // a + (-b)
                             if(mul_rslt[add*2][MULBFPMANSIZE-2:0] >= mul_rslt[add*2+1][MULBFPMANSIZE-2:0]) begin                                                              // |a| >= |b|
-                                tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 0;                                                                                           // y = (a-b)
+                                tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 0;                                                                                            // y = (a-b)
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = mul_rslt[add*2][MULBFPMANSIZE-2:0] - mul_rslt[add*2+1][MULBFPMANSIZE-2:0];
                             end
-                            else begin                                                                                                                                      // |a| < |b|
+                            else begin                                                                                                                                       // |a| < |b|
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 1;                                                                                           // y = -(b-a)
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = mul_rslt[add*2+1][MULBFPMANSIZE-2:0] - mul_rslt[add*2][MULBFPMANSIZE-2:0];
                             end
                         end
                         else if(mul_rslt[add*2][MULBFPMANSIZE-1] == 1 && mul_rslt[add*2+1][MULBFPMANSIZE-1] == 0) begin                                                       // (-a) + b
                             if(mul_rslt[add*2][MULBFPMANSIZE-2:0] >= mul_rslt[add*2+1][MULBFPMANSIZE-2:0]) begin                                                              // |a| >= |b|
-                                tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 1;                                                                                           // y = -(a-b)
+                                tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 1;                                                                                            // y = -(a-b)
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = mul_rslt[add*2][MULBFPMANSIZE-2:0] - mul_rslt[add*2+1][MULBFPMANSIZE-2:0];
                             end
-                            else begin                                                                                                                                      // |a| < |b|
+                            else begin                                                                                                                                       // |a| < |b|
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 0;                                                                                           // y = b-a
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = mul_rslt[add*2+1][MULBFPMANSIZE-2:0] - mul_rslt[add*2][MULBFPMANSIZE-2:0];
                             end
@@ -112,88 +113,85 @@ module fmac #(
     endgenerate
 
     always @ (*) begin
-        casez(tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0]) 
-            11'b1??_????_????: begin
-                exp_rslt = tmp_exp_rslt + 4;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 1;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
-            end
-            11'b01?_????_????: begin
+        casez(tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0])
+            10'b1???_??????: begin
                 exp_rslt = tmp_exp_rslt + 3;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 2;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 1;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b001_????_????: begin
+            10'b01??_??????: begin
                 exp_rslt = tmp_exp_rslt + 2;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 3;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 2;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_1???_????: begin
+            10'b001?_??????: begin
                 exp_rslt = tmp_exp_rslt + 1;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 4;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 3;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_01??_????: begin
+            10'b0001_??????: begin
                 exp_rslt = tmp_exp_rslt;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 5;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 4;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_001?_????: begin
+            10'b0000_1?????: begin
                 exp_rslt = tmp_exp_rslt - 1;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 6;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 5;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_0001_????: begin
+            10'b0000_01????: begin
                 exp_rslt = tmp_exp_rslt - 2;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 7;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 6;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_0000_1???: begin
+            10'b0000_001???: begin
                 exp_rslt = tmp_exp_rslt - 3;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 8;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 7;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_0000_01??: begin
+            10'b0000_0001??: begin
                 exp_rslt = tmp_exp_rslt - 4;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 9;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 8;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_0000_001?: begin
+            10'b0000_00001?: begin
                 exp_rslt = tmp_exp_rslt - 5;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 10;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 9;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
-            11'b000_0000_0001: begin
+            10'b0000_000001: begin
                 exp_rslt = tmp_exp_rslt - 6;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 11;
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 10;
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
             default: begin
                 exp_rslt = tmp_exp_rslt;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0];
-                fp_man[22-(MULBFPMANSIZE+levels):0] = 0;
+                tmp_fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                tmp_fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0];
+                tmp_fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
         endcase
     end
 
     always @ (*) begin
+        // If exponent is exceeds the highest value, make it infinity
         if(exp_rslt > 8'b1111_1110) begin
             fp_exp = 8'b1111_1111;
+            fp_man = 0;
         end
         else begin
             fp_exp = exp_rslt[7:0];
+            fp_man = tmp_fp_man;
         end
     end
 
@@ -244,23 +242,57 @@ module fmac #(
     logic [(MULBFPMANSIZE+levels)-1:0] tmp_rslt_13;
     logic [(MULBFPMANSIZE+levels)-1:0] tmp_rslt_14;
     logic [(MULBFPMANSIZE+levels)-1:0] tmp_rslt_15;
-    always_comb begin        
-        //tmp_rslt_0 =  tmp_rslt[ 0];
-        tmp_rslt_1 =  tmp_rslt[ 1];
-        tmp_rslt_2 =  tmp_rslt[ 2];
-        tmp_rslt_3 =  tmp_rslt[ 3];
-        tmp_rslt_4 =  tmp_rslt[ 4];
-        tmp_rslt_5 =  tmp_rslt[ 5];
-        tmp_rslt_6 =  tmp_rslt[ 6];
-        tmp_rslt_7 =  tmp_rslt[ 7];
-        tmp_rslt_8 =  tmp_rslt[ 8];
-        tmp_rslt_9 =  tmp_rslt[ 9];
-        tmp_rslt_10 = tmp_rslt[10];
-        tmp_rslt_11 = tmp_rslt[11];
-        tmp_rslt_12 = tmp_rslt[12];
-        tmp_rslt_13 = tmp_rslt[13];
-        tmp_rslt_14 = tmp_rslt[14];
-        tmp_rslt_15 = tmp_rslt[15];
+
+    logic [MULBFPMANSIZE-2:0] mul_rslt_0;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_1;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_2;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_3;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_4;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_5;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_6;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_7;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_8;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_9;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_10;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_11;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_12;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_13;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_14;
+    logic [MULBFPMANSIZE-2:0] mul_rslt_15;
+    always @ (*) begin        
+        tmp_rslt_0 =  tmp_rslt[ 0][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_1 =  tmp_rslt[ 1][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_2 =  tmp_rslt[ 2][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_3 =  tmp_rslt[ 3][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_4 =  tmp_rslt[ 4][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_5 =  tmp_rslt[ 5][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_6 =  tmp_rslt[ 6][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_7 =  tmp_rslt[ 7][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_8 =  tmp_rslt[ 8][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_9 =  tmp_rslt[ 9][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_10 = tmp_rslt[10][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_11 = tmp_rslt[11][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_12 = tmp_rslt[12][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_13 = tmp_rslt[13][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_14 = tmp_rslt[14][(MULBFPMANSIZE+levels)-2:0];
+        tmp_rslt_15 = tmp_rslt[15][(MULBFPMANSIZE+levels)-2:0];
+
+        mul_rslt_0 =  mul_rslt[ 0][5:0];
+        mul_rslt_1 =  mul_rslt[ 1][5:0];
+        mul_rslt_2 =  mul_rslt[ 2][5:0];
+        mul_rslt_3 =  mul_rslt[ 3][5:0];
+        mul_rslt_4 =  mul_rslt[ 4][5:0];
+        mul_rslt_5 =  mul_rslt[ 5][5:0];
+        mul_rslt_6 =  mul_rslt[ 6][5:0];
+        mul_rslt_7 =  mul_rslt[ 7][5:0];
+        mul_rslt_8 =  mul_rslt[ 8][5:0];
+        mul_rslt_9 =  mul_rslt[ 9][5:0];
+        mul_rslt_10 = mul_rslt[10][5:0];
+        mul_rslt_11 = mul_rslt[11][5:0];
+        mul_rslt_12 = mul_rslt[12][5:0];
+        mul_rslt_13 = mul_rslt[13][5:0];
+        mul_rslt_14 = mul_rslt[14][5:0];
+        mul_rslt_15 = mul_rslt[15][5:0];
     end
 
 
