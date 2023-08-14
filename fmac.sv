@@ -57,7 +57,7 @@ module fmac #(
         for(lv=levels-1; lv>=0; lv=lv-1) begin : level
             for(add=0; add<2**lv; add=add+1) begin : add_man
                 always @ (*) begin
-                    /* For the first level of the adder tree, fetch operands from mul_rslt. tmp */
+                    /* For the first level of the adder tree, fetch operands from mul_rslt. */
                     if(lv == levels-1) begin
                         /* a + (-b) */
                         if(mul_rslt[add*2][MULBFPMANSIZE-1] == 0 && mul_rslt[add*2+1][MULBFPMANSIZE-1] == 1) begin  
@@ -143,57 +143,39 @@ module fmac #(
     /* making implicit leading 1 and check for exponent overflow and underflow */
     always @ (*) begin
         if(tmp_rslt[1][(MULBFPMANSIZE+levels)-2] == 1'b1) begin
-            if(exp_rslt > 9'b0_1111_1110) begin
+            if((exp_rslt + 3) > 9'b0_1111_1110) begin
                 fp_exp = 8'b1111_1111;
                 fp_man = 0;
             end
             else begin
-                if((exp_rslt + 3) > 9'b0_1111_1110) begin
-                    fp_exp = 8'b1111_1111;
-                    fp_man = 0;
-                end
-                else begin
-                    fp_exp = exp_rslt + 3;
-                    fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                    fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 1;
-                    fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
-                end
+                fp_exp = exp_rslt + 3;
+                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 1;
+                fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
         end
         else if(tmp_rslt[1][(MULBFPMANSIZE+levels)-3] == 1'b1) begin
-            if(exp_rslt > 9'b0_1111_1110) begin
+            if((exp_rslt + 2) > 9'b0_1111_1110) begin
                 fp_exp = 8'b1111_1111;
                 fp_man = 0;
             end
             else begin
-                if((exp_rslt + 2) > 9'b0_1111_1110) begin
-                    fp_exp = 8'b1111_1111;
-                    fp_man = 0;
-                end
-                else begin
-                    fp_exp = exp_rslt + 2;
-                    fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                    fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 2;
-                    fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
-                end
+                fp_exp = exp_rslt + 2;
+                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 2;
+                fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
         end
         else if(tmp_rslt[1][(MULBFPMANSIZE+levels)-4] == 1'b1) begin
-            if(exp_rslt > 9'b0_1111_1110) begin
+            if((exp_rslt + 1) > 9'b0_1111_1110) begin
                 fp_exp = 8'b1111_1111;
                 fp_man = 0;
             end
             else begin
-                if((exp_rslt + 1) > 9'b0_1111_1110) begin
-                    fp_exp = 8'b1111_1111;
-                    fp_man = 0;
-                end
-                else begin
-                    fp_exp = exp_rslt + 1;
-                    fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                    fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 3;
-                    fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
-                end
+                fp_exp = exp_rslt + 1;
+                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+                fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0] << 3;
+                fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
             end
         end
         else if(tmp_rslt[1][(MULBFPMANSIZE+levels)-5] == 1'b1) begin
@@ -329,10 +311,10 @@ module fmac #(
             end
         end
         else begin
-                fp_exp = exp_rslt;
-                fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
-                fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0];
-                fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
+            fp_exp = exp_rslt;
+            fp_man[23] = tmp_rslt[1][(MULBFPMANSIZE+levels)-1];
+            fp_man[22:22-(MULBFPMANSIZE+levels-1)+1] = tmp_rslt[1][(MULBFPMANSIZE+levels)-2:0];
+            fp_man[22-(MULBFPMANSIZE+levels-1):0] = 0;
         end
     end
 
