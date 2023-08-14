@@ -9,16 +9,19 @@ module fmac #(
 ) (
     input  i_clk, 
     input  i_reset_n,
+    input  i_sel,
     input  [BFPEXPSIZE-1:0] i_Act_E,
     input  [BFPMANSIZE-1:0] i_Act_M [0:GRPSIZE-1],
     input  [BFPEXPSIZE-1:0] i_Weight_E,
     input  [BFPMANSIZE-1:0] i_Weight_M [0:GRPSIZE-1],
-    input  [BFPEXPSIZE-1:0] i_prev_result_E,
-    input  [BFPMANSIZE-1:0] i_prev_result_M [0:GRPSIZE-1],
-    output logic [FPEXPSIZE-1:0]  o_result_E,
-    output logic [FPMANSIZE-1:0]  o_result_M,
+    input  [FPEXPSIZE-1:0]  i_ACC_E,
+    input  [FPMANSIZE-1:0]  i_ACC_M,
+    output logic [BFPEXPSIZE-1:0] o_Weight_E,
+    output logic [BFPMANSIZE-1:0] o_Weight_M [0:GRPSIZE-1],
     output logic [BFPEXPSIZE-1:0] o_Act_E,
-    output logic [BFPEXPSIZE-1:0] o_Act_M [0:GRPSIZE-1]
+    output logic [BFPEXPSIZE-1:0] o_Act_M [0:GRPSIZE-1],
+    output logic [FPEXPSIZE-1:0]  o_ACC_E,
+    output logic [FPMANSIZE-1:0]  o_ACC_M
     );
 
     parameter levels = $clog2(GRPSIZE);
@@ -60,7 +63,7 @@ module fmac #(
                     /* For the first level of the adder tree, fetch operands from mul_rslt. */
                     if(lv == levels-1) begin
                         /* a + (-b) */
-                        if(mul_rslt[add*2][MULBFPMANSIZE-1] == 0 && mul_rslt[add*2+1][MULBFPMANSIZE-1] == 1) begin  
+                        if((mul_rslt[add*2][MULBFPMANSIZE-1] == 0) && (mul_rslt[add*2+1][MULBFPMANSIZE-1] == 1)) begin  
                             /* |a| >= |b| */
                             if(mul_rslt[add*2][MULBFPMANSIZE-2:0] >= mul_rslt[add*2+1][MULBFPMANSIZE-2:0]) begin
                                 /* tmp_rslt = a - b */                                                              
@@ -75,10 +78,10 @@ module fmac #(
                             end
                         end
                         /* (-a) + b */
-                        else if(mul_rslt[add*2][MULBFPMANSIZE-1] == 1 && mul_rslt[add*2+1][MULBFPMANSIZE-1] == 0) begin  
+                        else if((mul_rslt[add*2][MULBFPMANSIZE-1] == 1) && (mul_rslt[add*2+1][MULBFPMANSIZE-1] == 0)) begin  
                             /* |a| >= |b| */                                                     
                             if(mul_rslt[add*2][MULBFPMANSIZE-2:0] >= mul_rslt[add*2+1][MULBFPMANSIZE-2:0]) begin      
-                                /* tmp_rslt = -(b - a) */                                                        
+                                /* tmp_rslt = -(a - b)) */                                                        
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 1;                                                                                            
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = mul_rslt[add*2][MULBFPMANSIZE-2:0] - mul_rslt[add*2+1][MULBFPMANSIZE-2:0];
                             end
@@ -117,7 +120,7 @@ module fmac #(
                         else if(tmp_rslt[2**(lv+1)+add*2][(MULBFPMANSIZE+levels)-1] == 1 && tmp_rslt[2**(lv+1)+add*2+1][(MULBFPMANSIZE+levels)-1] == 0) begin 
                             /* |a| >= |b| */                                   
                             if(tmp_rslt[2**(lv+1)+add*2][(MULBFPMANSIZE+levels)-2:0] >= tmp_rslt[2**(lv+1)+add*2+1][(MULBFPMANSIZE+levels)-2:0]) begin
-                                /* tmp_rslt = -(b - a) */                                           
+                                /* tmp_rslt = -(a - b) */                                           
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-1] = 1;                                                                        
                                 tmp_rslt[2**lv+add][(MULBFPMANSIZE+levels)-2:0] = tmp_rslt[2**(lv+1)+add*2][(MULBFPMANSIZE+levels)-2:0] - tmp_rslt[2**(lv+1)+add*2+1][(MULBFPMANSIZE+levels)-2:0];
                             end
@@ -322,13 +325,15 @@ module fmac #(
     always_ff @ (posedge i_clk or negedge i_reset_n) begin
         if(~i_reset_n) begin
             o_Act_E <= 0;
-            o_result_E <= 0;
-            o_result_M <= 0;
+            o_Weight_E <= 0;
+            o_ACC_E <= 0;
+            o_ACC_M <= 0;
         end
         else begin
             o_Act_E <= i_Act_E;
-            o_result_E <= fp_exp;
-            o_result_M <= fp_man;
+            o_Weight_E <= i_Weight_E;
+            o_ACC_E <= fp_exp;
+            o_ACC_M <= fp_man;
         end
     end
 
@@ -338,9 +343,11 @@ module fmac #(
             always_ff @ (posedge i_clk or negedge i_reset_n) begin
                 if(~i_reset_n) begin
                     o_Act_M[out] <= 0;
+                    o_Weight_M[out] <= 0;
                 end
                 else begin
                     o_Act_M[out] <= i_Act_M[out];
+                    o_Weight_M[out] <= i_Weight_M[out];
                 end
                 
             end
